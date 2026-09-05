@@ -26,10 +26,95 @@ function StoreList() { return <section className="shop-section"><div className="
 
 function ProductCard({ product }: { product: Product }) { return <Link to={`/product/${product.id}`} className="product-card"><div className="product-image"><img src={product.image} alt={product.name} /></div><div className="product-card-body"><p className="brand">{product.brand}</p><h3>{product.name}</h3><p className="price">{money(product.price)}</p><span className="emi-copy">No-cost EMI from {money(Math.ceil(product.price / 18))}/mo</span></div></Link> }
 function MarketplaceList() {
-  const { data, isPending, isError, error, refetch } = useQuery({ queryKey: ['products'], queryFn: marketplaceApi.getProducts })
+  const { data, isPending, isError, error, refetch } = useQuery({
+    queryKey: ['products'],
+    queryFn: marketplaceApi.getProducts,
+  })
+
   const [term, setTerm] = useState('')
-  const visible = useMemo(() => data?.filter((p) => `${p.name} ${p.brand} ${p.category}`.toLowerCase().includes(term.toLowerCase())) ?? [], [data, term])
-  return <section className="marketplace"><div className="marketplace-title"><div><p className="eyebrow">1FI MARKETPLACE</p><h2>Shop top products</h2><p>Pay in easy, no-cost EMIs.</p></div><div className="badge-circle">0%</div></div><label className="search"><Search size={21} /><input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Search products..." /></label>{isPending && <div className="status-card">Loading products…</div>}{isError && <div className="status-card error"><CircleHelp size={22} /><p>{error.message}</p><button onClick={() => refetch()}>Try again</button></div>}{data && <><div className="category-row"><span>All</span><span>Smartphones</span><span>Laptops</span><span>Audio</span></div><div className="product-grid">{visible.map((product) => <ProductCard product={product} key={product.id} />)}</div>{visible.length === 0 && <div className="status-card">No products match “{term}”.</div>}</>}</section>
+  const [category, setCategory] = useState('All')
+
+  const categories = [
+    'All',
+    ...new Set(data?.map((product) => product.category) ?? []),
+  ]
+
+  const visible = useMemo(
+    () =>
+      data?.filter((product) => {
+        const matchesSearch =
+          `${product.name} ${product.brand} ${product.category}`
+            .toLowerCase()
+            .includes(term.toLowerCase())
+
+        return (
+          matchesSearch &&
+          (category === 'All' || product.category === category)
+        )
+      }) ?? [],
+    [data, term, category],
+  )
+
+  return (
+    <section className="marketplace">
+      <div className="marketplace-title">
+        <div>
+          <p className="eyebrow">1FI MARKETPLACE</p>
+          <h2>Shop top products</h2>
+          <p>Pay in easy, no-cost EMIs.</p>
+        </div>
+        <div className="badge-circle">0%</div>
+      </div>
+
+      <label className="search">
+        <Search size={21} />
+        <input
+          value={term}
+          onChange={(e) => setTerm(e.target.value)}
+          placeholder="Search products..."
+        />
+      </label>
+
+      {isPending && <div className="status-card">Loading products…</div>}
+
+      {isError && (
+        <div className="status-card error">
+          <CircleHelp size={22} />
+          <p>{error.message}</p>
+          <button onClick={() => refetch()}>Try again</button>
+        </div>
+      )}
+
+      {data && (
+        <>
+          <div className="category-row" aria-label="Product categories">
+            {categories.map((item) => (
+              <button
+                key={item}
+                className={category === item ? 'selected-category' : ''}
+                onClick={() => setCategory(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+
+          <div className="product-grid">
+            {visible.map((product) => (
+              <ProductCard product={product} key={product.id} />
+            ))}
+          </div>
+
+          {visible.length === 0 && (
+            <div className="status-card">
+              No {category === 'All' ? '' : category.toLowerCase()} products
+              match “{term}”.
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  )
 }
 
 function ShopPage() { const [active, setActive] = useState<ShopTab>('brands'); return <Shell><Hero /><div className="shop-body"><TabControl active={active} setActive={setActive} />{active !== 'marketplace' && <SearchInput placeholder={active === 'brands' ? 'Search online stores...' : 'Search stores...'} />}{active === 'brands' && <BrandList />}{active === 'stores' && <StoreList />}{active === 'marketplace' && <MarketplaceList />}</div></Shell> }
